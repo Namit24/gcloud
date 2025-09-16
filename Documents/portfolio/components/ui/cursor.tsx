@@ -1,22 +1,13 @@
 "use client"
 
 import * as React from "react"
-import {
-  motion,
-  useMotionValue,
-  useSpring,
-  AnimatePresence,
-  type HTMLMotionProps,
-  type SpringOptions,
-} from "framer-motion"
-
 import { cn } from "@/lib/utils"
 
 type CursorContextType = {
   cursorPos: { x: number; y: number }
   isActive: boolean
-  containerRef: React.RefObject<HTMLDivElement | null>
-  cursorRef: React.RefObject<HTMLDivElement | null>
+  containerRef: React.RefObject<HTMLDivElement>
+  cursorRef: React.RefObject<HTMLDivElement>
 }
 
 const CursorContext = React.createContext<CursorContextType | undefined>(undefined)
@@ -29,16 +20,18 @@ const useCursor = (): CursorContextType => {
   return context
 }
 
-type CursorProviderProps = React.ComponentProps<"div"> & {
+type CursorProviderProps = Omit<React.ComponentProps<"div">, "ref"> & {
   children: React.ReactNode
+  ref?: React.Ref<HTMLDivElement>
 }
 
 function CursorProvider({ ref, children, ...props }: CursorProviderProps) {
   const [cursorPos, setCursorPos] = React.useState({ x: 0, y: 0 })
   const [isActive, setIsActive] = React.useState(false)
-  const containerRef = React.useRef<HTMLDivElement>(null)
-  const cursorRef = React.useRef<HTMLDivElement>(null)
-  React.useImperativeHandle(ref, () => containerRef.current as HTMLDivElement)
+  const containerRef = React.useRef<HTMLDivElement>(null!)
+  const cursorRef = React.useRef<HTMLDivElement>(null!)
+
+  React.useImperativeHandle(ref, () => containerRef.current)
 
   React.useEffect(() => {
     if (!containerRef.current) return
@@ -67,24 +60,24 @@ function CursorProvider({ ref, children, ...props }: CursorProviderProps) {
   }, [])
 
   return (
-    <CursorContext.Provider value={{ cursorPos, isActive, containerRef, cursorRef }}>
-      <div ref={containerRef} data-slot="cursor-provider" {...props}>
-        {children}
-      </div>
-    </CursorContext.Provider>
+      <CursorContext.Provider value={{ cursorPos, isActive, containerRef, cursorRef }}>
+        <div ref={containerRef} data-slot="cursor-provider" {...props}>
+          {children}
+        </div>
+      </CursorContext.Provider>
   )
 }
 
-type CursorProps = HTMLMotionProps<"div"> & {
+type CursorProps = Omit<React.ComponentProps<"div">, "ref"> & {
   children: React.ReactNode
+  ref?: React.Ref<HTMLDivElement>
 }
 
 function Cursor({ ref, children, className, style, ...props }: CursorProps) {
   const { cursorPos, isActive, containerRef, cursorRef } = useCursor()
-  React.useImperativeHandle(ref, () => cursorRef.current as HTMLDivElement)
 
-  const x = useMotionValue(0)
-  const y = useMotionValue(0)
+  // @ts-ignore
+  React.useImperativeHandle(ref, () => cursorRef.current)
 
   React.useEffect(() => {
     const parentElement = containerRef.current?.parentElement
@@ -96,59 +89,48 @@ function Cursor({ ref, children, className, style, ...props }: CursorProps) {
     }
   }, [containerRef, cursorPos, isActive])
 
-  React.useEffect(() => {
-    x.set(cursorPos.x)
-    y.set(cursorPos.y)
-  }, [cursorPos, x, y])
+  if (!isActive) return null
 
   return (
-    <AnimatePresence>
-      {isActive && (
-        <motion.div
+      <div
           ref={cursorRef}
           data-slot="cursor"
-          className={cn("transform-[translate(-50%,-50%)] pointer-events-none z-[9999] absolute", className)}
-          style={{ top: y, left: x, ...style }}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
+          className={cn("pointer-events-none z-[9999] absolute transition-all duration-100", className)}
+          style={{
+            top: cursorPos.y,
+            left: cursorPos.x,
+            transform: "translate(-50%, -50%)",
+            ...style,
+          }}
           {...props}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
+      >
+        {children}
+      </div>
   )
 }
 
 type Align = "top" | "top-left" | "top-right" | "bottom" | "bottom-left" | "bottom-right" | "left" | "right" | "center"
 
-type CursorFollowProps = HTMLMotionProps<"div"> & {
+type CursorFollowProps = Omit<React.ComponentProps<"div">, "ref"> & {
   sideOffset?: number
   align?: Align
-  transition?: SpringOptions
   children: React.ReactNode
+  ref?: React.Ref<HTMLDivElement>
 }
 
 function CursorFollow({
-  ref,
-  sideOffset = 15,
-  align = "bottom-right",
-  children,
-  className,
-  style,
-  transition = { stiffness: 500, damping: 50, bounce: 0 },
-  ...props
-}: CursorFollowProps) {
+                        ref,
+                        sideOffset = 15,
+                        align = "bottom-right",
+                        children,
+                        className,
+                        style,
+                        ...props
+                      }: CursorFollowProps) {
   const { cursorPos, isActive, cursorRef } = useCursor()
-  const cursorFollowRef = React.useRef<HTMLDivElement>(null)
-  React.useImperativeHandle(ref, () => cursorFollowRef.current as HTMLDivElement)
+  const cursorFollowRef = React.useRef<HTMLDivElement>(null!)
 
-  const x = useMotionValue(0)
-  const y = useMotionValue(0)
-
-  const springX = useSpring(x, transition)
-  const springY = useSpring(y, transition)
+  React.useImperativeHandle(ref, () => cursorFollowRef.current)
 
   const calculateOffset = React.useCallback(() => {
     const rect = cursorFollowRef.current?.getBoundingClientRect()
@@ -192,33 +174,31 @@ function CursorFollow({
     return newOffset
   }, [align, sideOffset])
 
-  React.useEffect(() => {
-    const offset = calculateOffset()
-    const cursorRect = cursorRef.current?.getBoundingClientRect()
-    const cursorWidth = cursorRect?.width ?? 20
-    const cursorHeight = cursorRect?.height ?? 20
+  if (!isActive) return null
 
-    x.set(cursorPos.x - offset.x + cursorWidth / 2)
-    y.set(cursorPos.y - offset.y + cursorHeight / 2)
-  }, [calculateOffset, cursorPos, cursorRef, x, y])
+  const offset = calculateOffset()
+  const cursorRect = cursorRef.current?.getBoundingClientRect()
+  const cursorWidth = cursorRect?.width ?? 20
+  const cursorHeight = cursorRect?.height ?? 20
+
+  const finalX = cursorPos.x - offset.x + cursorWidth / 2
+  const finalY = cursorPos.y - offset.y + cursorHeight / 2
 
   return (
-    <AnimatePresence>
-      {isActive && (
-        <motion.div
+      <div
           ref={cursorFollowRef}
           data-slot="cursor-follow"
-          className={cn("transform-[translate(-50%,-50%)] pointer-events-none z-[9998] absolute", className)}
-          style={{ top: springY, left: springX, ...style }}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
+          className={cn("pointer-events-none z-[9998] absolute transition-all duration-200", className)}
+          style={{
+            top: finalY,
+            left: finalX,
+            transform: "translate(-50%, -50%)",
+            ...style,
+          }}
           {...props}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
+      >
+        {children}
+      </div>
   )
 }
 

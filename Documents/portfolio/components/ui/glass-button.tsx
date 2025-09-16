@@ -11,9 +11,9 @@ interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 
 export const GlassButton = ({ variant = "primary", size = "md", className, children, ...props }: GlassButtonProps) => {
   const variants = {
-    primary: "bg-white text-black border-white hover:bg-gray-100 hover:text-black",
-    secondary: "bg-gray-900 text-white border-gray-700 hover:bg-gray-800 hover:text-white",
-    outline: "bg-gray-900 text-white border-white/80 hover:bg-gray-800 hover:text-white",
+    primary: "!bg-white !text-black border-white hover:!bg-gray-100 hover:!text-black shadow-lg",
+    secondary: "!bg-gray-900 !text-white border-gray-700 hover:!bg-gray-800 hover:!text-white shadow-lg",
+    outline: "!bg-transparent !text-white border-white/80 hover:!bg-white/10 hover:!text-white shadow-lg",
   }
 
   const sizes = {
@@ -26,7 +26,6 @@ export const GlassButton = ({ variant = "primary", size = "md", className, child
       <button
           className={cn(
               "relative inline-flex items-center justify-center rounded-full border transition-all duration-300 font-medium",
-              "shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.4)]",
               "hover:scale-[1.02] active:scale-[0.98] transform",
               variants[variant],
               sizes[size],
